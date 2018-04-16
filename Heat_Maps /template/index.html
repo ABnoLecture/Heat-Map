@@ -1,0 +1,294 @@
+<html >
+
+<head>
+
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="description" content="">
+    <meta name="author" content="">
+    <title>Mapa de calor</title>
+
+
+</head>
+
+<body onload="initialize()" >
+
+    <div id="wrapper">
+
+        <!-- Navigation -->
+        <nav class="navbar navbar-default navbar-static-top" role="navigation" style="margin-bottom: 0">
+          <div class="col-lg-4">
+            <form action = "/upload" method = "POST" enctype = "multipart/form-data">
+              <div class="form-group">
+              <label for="Subir archivo">Subir Archivo</label>
+                <input type="file" id="btn01" name="Subir archivo">
+              </div>
+               <button type = "submit" class="btn btn-default">Confirmar</button>
+            </form>
+
+          </div>
+        </nav>
+
+        <div class="col-lg-12">
+              <h1 class="page-header">Mapa de calor Medellin</h1>
+        </div>
+        <div class=row>
+          <div class="col-lg-8 col-lg-12">
+            <div class="col-lg-12">
+              <div class="panel panel-default">
+                  <div class="panel-heading">
+                      <i class="fa fa-bar-chart-o fa-fw"></i><b>Ubicacion mapa</b>
+                  </div>
+                  <!-- /.panel-heading -->
+                  <div class="panel-body">
+                      <div id="map_canvas" style="width: 100%; height: 90%;"></div>
+                  </div>
+                  <!-- /.panel-body -->
+              </div>
+            </div>
+              <!-- /.panel -->
+          </div>
+
+            <div class="col-lg-4">
+              <div class="panel panel-default">
+                  <div class="panel-heading">
+                      <i class="fa fa-bell fa-fw"></i> <b>Panel de Notificaciones</b>
+                  </div>
+                  <!-- /.panel-heading -->
+                  <div class="panel-body">
+                    <div class="row">
+                      <div style="height:725px;overflow-y:scroll;overflow-x:scroll;margin-right:15px;">
+                      <div class="col-lg-12">
+                          <div class="table-responsive">
+                                  {{table}}
+                          </div>
+                          <!-- /.table-responsive -->
+                      </div>
+                    </div>
+                      <!-- /.col-lg-4 (nested) -->
+                      <div class="col-lg-8">
+                          <div id="morris-bar-chart"></div>
+
+                      </div>
+                      <!-- /.col-lg-8 (nested) -->
+                  </div>
+                </div>
+                  <!-- /.panel-body -->
+              </div>
+                      <!-- /.panel -->
+            </div>
+        </div>
+          <div class="col-lg-12">
+              <div class="panel panel-default">
+                  <div class="panel-heading">
+                      <i class="fa fa-bar-chart-o fa-fw"></i> Grafica de entrenamiento
+                  </div>
+                  <!-- /.panel-heading -->
+                  <div class="panel-body">
+                      <div id="morris-area-chart"></div>
+                        <canvas id="myChart" width="1300" height="324"  ></canvas>
+                  </div>
+                  <!-- /.panel-body -->
+              </div>
+              <!-- /.panel -->
+          </div>
+        </div>
+        <!-- /#page-wrapper -->
+        <div>
+          <p A.B No Lecture/>
+
+        </div>
+    </div>
+    <!-- /#wrapper -->
+    </body>
+
+    </html>
+
+
+    <link href="{{url_for('.static', filename='bootstrap.min.css')}}" rel="stylesheet" type="text/css">
+
+    <!-- MetisMenu CSS -->
+    <link href="{{url_for('.static', filename='metisMenu.min.css')}}" rel="stylesheet" type="text/css">
+
+    <!-- Custom CSS -->
+    <link href="{{url_for('.static', filename='sb-admin-2.min.css')}}" rel="stylesheet" type="text/css">
+
+    <!-- Morris Charts CSS -->
+    <link href="{{url_for('.static', filename='morris.css')}}" rel="stylesheet" type="text/css">
+
+    <script type="text/javascript" src="https://maps.googleapis.com/maps/api/js?libraries=visualization&sensor=true_or_false"></script>
+
+    <script type="text/javascript">
+    var map_markers = [];
+    var prev_infowindow_map = null;
+
+  function initialize() {
+    var centerlatlng = new google.maps.LatLng(6.223583, -75.573602);
+    var myOptions = {
+      zoom: 13,
+      center: centerlatlng,
+
+      mapTypeId: google.maps.MapTypeId.ROADMAP
+    };
+    var map = new google.maps.Map(document.getElementById("map_canvas"), myOptions);
+
+    var raw_markers  =[
+        {% for i in dots %}
+        {'fecha' : '{{i[0]}}', 'placa': '{{i[4]}}','lat': {{i[2]}}, 'long' : {{i[3]}},'pos':'{{i[5]}}'},
+        {% endfor %}];
+
+    for(i=0; i<raw_markers.length;i++) {
+        map_markers[i] = new google.maps.Marker({
+            position: new google.maps.LatLng(raw_markers[i].lat, raw_markers[i].long),
+            map: map,
+            icon: "http://maps.google.com/mapfiles/ms/icons/green-dot.png",
+            title: raw_markers[i].title ? raw_markers[i].title : null
+        });
+
+       if(raw_markers[i].placa)
+       {
+            google.maps.event.addListener(
+                    map_markers[i],
+                    'click',
+                    getInfoCallback(map,'<b>'+'Lugar: '+'</b>'+raw_markers[i].pos)
+            );
+       }
+    }
+
+    var heatmap_points = [
+      {% for info in infos %}
+    new google.maps.LatLng({{info.lat}}, {{info.long}}),
+    {% endfor %}
+    ];
+
+    var pointArray = new google.maps.MVCArray(heatmap_points);
+    var heatmap;
+    heatmap = new google.maps.visualization.HeatmapLayer({
+
+    data: pointArray
+    });
+    heatmap.setMap(map);
+    heatmap.set('threshold', 5);
+    heatmap.set('radius', 10);
+    heatmap.set('maxIntensity', 22.5);
+    heatmap.set('opacity', 0.600000);
+    heatmap.set('dissipating', true);
+      }
+
+    function getInfoCallback(map, content) {
+        var infowindow = new google.maps.InfoWindow({content: content});
+        return function(ev) {
+            if( prev_infowindow_map ) {
+                prev_infowindow_map.close();
+            }
+            prev_infowindow_map = infowindow;
+            infowindow.setPosition(ev.latLng);
+            infowindow.setContent(content);
+            infowindow.open(map, this);
+        };
+    }
+    google.maps.event.addDomListener(window, 'load', initialize);
+
+    </script>
+
+    <script src='static/Chart.min.js'></script>
+
+    <script type="text/javascript">
+
+      var Data = {
+        labels : [{% for item in epocasi %}
+                       "{{item}}",
+                   {% endfor %}],
+        datasets : [
+           {
+                 borderColor:'rgba(255,0,0,1)',
+                 backgroundColor:'rgba(255,0,0,0.3)',
+                 label: 'Train_Loss',
+                 // fill:false,
+                 // yAxisID: 'A',
+                 data : [{% for item in entrenamiento[0] %}
+                           {{item}},
+                         {% endfor %}]
+           },{
+                 borderColor:'rgba(0,0,255,1)',
+                 backgroundColor:'rgba(0,0,255,0.3)',
+                 // fill:false,
+                 label: 'Val_Loss',
+                 // yAxisID: 'B',
+                 data : [{% for item in entrenamiento[1] %}
+                           {{item}},
+                         {% endfor %}]
+           },{
+                 borderColor:'rgba(255,0,255,1)',
+                 backgroundColor:'rgba(255,0,255,0.3)',
+                 // fill:false,
+                 label: 'Train_Acc',
+                 // yAxisID: 'C',
+                 data : [{% for item in entrenamiento[2] %}
+                           {{item}},
+                         {% endfor %}]
+           },{
+                 borderColor:'rgba(0,255,0,1)',
+                 backgroundColor:'rgba(0,255,0,0.3)',
+                 // fill:false,
+                 label: 'Val_Acc',
+                 // yAxisID: 'D',
+                 data : [{% for item in entrenamiento[3] %}
+                           {{item}},
+                         {% endfor %}]
+           }
+         ]
+        }
+
+      var opciones={
+        title: {
+              display: true,
+              position:'top',
+              text: 'Grafica de entrenamiento'
+        },
+        scales: {
+        xAxes: [{
+          scaleLabel: {
+            display: true,
+            labelString: 'Epocas'
+             }
+        }],
+        yAxes: [{
+          scaleLabel: {
+            display: true,
+            labelString: 'Acc/Loss [%]'
+             }
+              }]
+
+        }
+
+      }
+
+      Chart.defaults.global.animationSteps = 50;
+      Chart.defaults.global.tooltipYPadding = 16;
+      Chart.defaults.global.tooltipCornerRadius = 0;
+      Chart.defaults.global.tooltipTitleFontStyle = "normal";
+      Chart.defaults.global.tooltipFillColor = "rgba(0,0,0,0.8)";
+      Chart.defaults.global.animationEasing = "easeOutBounce";
+      Chart.defaults.global.responsive = false;
+      Chart.defaults.global.scaleLineColor = "black";
+      Chart.defaults.global.scaleFontSize = 16;
+
+      var mychart = document.getElementById("myChart").getContext("2d");
+      // draw bar chart
+      var myLineChart = new Chart(mychart, {
+          type: 'line',
+          data: Data,
+          options:opciones
+
+      });
+
+    </script>
+
+    <!-- jQuery -->
+    <script src="{{url_for('.static', filename='jquery.min.js')}}"></script>
+    <script src="{{url_for('.static', filename='metisMenu.min.js')}}"></script>
+    <script src="{{url_for('.static', filename='morris.min.js')}}"></script>
+    <script src="{{url_for('.static', filename='raphael.min.js')}}"></script>
+    <script src="{{url_for('.static', filename='bootstrap.min.js')}}"></script>
